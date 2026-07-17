@@ -1,0 +1,21 @@
+{
+  "subjects": [
+    {
+      "id": "64f9tup",
+      "name": "교재 1",
+      "mode": "page",
+      "total": 100,
+      "start": "2026-07-17",
+      "end": "2026-07-17"
+    },
+    {
+      "id": "4wwfgd1",
+      "name": "재능",
+      "mode": "unit",
+      "total": 10,
+      "start": "2026-07-17",
+      "end": "2026-07-17"
+    }
+  ],
+  "records": {}
+}
