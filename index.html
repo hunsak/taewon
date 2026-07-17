@@ -93,6 +93,36 @@
     font-size:11px; padding:4px 10px; border-radius:99px; background:var(--accent-soft); color:#8A5423;
     cursor:pointer; border:none; font-weight:600;
   }
+  .streak-badge{
+    font-size:12.5px; font-weight:600; color:var(--accent); background:var(--accent-soft);
+    padding:7px 14px; border-radius:99px; white-space:nowrap;
+  }
+
+  .comment-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; box-shadow:var(--shadow); margin-bottom:20px;
+  }
+  .comment-card textarea{
+    width:100%; min-height:64px; border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+    font-family:'Noto Sans KR', sans-serif; font-size:13.5px; resize:vertical; background:#FCFAF5;
+  }
+
+  .weekly-row{
+    display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .weekly-row:last-child{ border-bottom:none; }
+  .weekly-name{ font-weight:700; font-size:13.5px; flex:none; min-width:110px; }
+  .weekly-name::before{
+    content:''; display:inline-block; width:8px;height:8px;border-radius:50%;
+    background:var(--c, var(--primary)); margin-right:7px;
+  }
+  .weekly-nums{ font-size:12px; color:var(--ink-soft); }
+  .weekly-status{ font-size:12px; font-weight:600; margin-left:auto; }
+  .weekly-status.ahead{ color:var(--primary); }
+  .weekly-status.behind{ color:var(--danger); }
+  .weekly-status.even{ color:var(--ink-soft); }
+  .weekly-status.neutral{ color:var(--ink-soft); }
 
   .empty-state{
     background:var(--paper); border:1px dashed var(--line); border-radius:var(--radius);
@@ -247,7 +277,7 @@ const SUBJECT_COLORS = ["#45624A","#E2924F","#5B7FA6","#B25D5D","#8A6BAF","#4A8B
 
 /* ================= STATE ================= */
 let ghCfg = loadGhCfg();
-let data = { subjects: [], records: {} };
+let data = { subjects: [], records: {}, comments: {} };
 let fileSha = null;
 let selectedDate = todayStr();
 let unlocked = false;
@@ -298,26 +328,48 @@ async function ghGetFile(){
 
 async function loadDataFromGithub(){
   setSync('', '불러오는 중…');
+  // 1) GitHub API contents endpoint first: not subject to the raw.githubusercontent CDN cache lag,
+  //    so it reflects a just-saved commit immediately. Uses token if present, otherwise unauthenticated
+  //    (60 req/hr limit, fine for normal family use).
   try{
-    // public raw read first (works without token, always latest on default branch)
-    const rawUrl = `https://raw.githubusercontent.com/${ghCfg.owner}/${ghCfg.repo}/${ghCfg.branch}/${ghCfg.path}?t=${Date.now()}`;
-    const res = await fetch(rawUrl, { cache:'no-store' });
-    if(res.ok){
-      data = await res.json();
+    const cur = await ghGetFile();
+    if(cur.exists){
+      data = cur.json || {};
+      fileSha = cur.sha;
       if(!data.subjects) data.subjects = [];
       if(!data.records) data.records = {};
+      if(!data.comments) data.comments = {};
       setSync('ok', '동기화됨');
       return true;
-    }
-    if(res.status === 404){
-      data = { subjects: [], records: {} };
+    }else{
+      data = { subjects: [], records: {}, comments: {} };
       setSync('', '데이터 없음 (설정에서 교재를 추가하세요)');
       return true;
     }
-    throw new Error('raw-fetch-failed:'+res.status);
   }catch(e){
-    setSync('err', '연결 실패 – 저장소 설정을 확인하세요');
-    return false;
+    // API failed (e.g. rate limit) — fall back to the raw CDN copy, which may lag a few minutes
+    // behind the very latest save but is more permissive on rate limits.
+    try{
+      const rawUrl = `https://raw.githubusercontent.com/${ghCfg.owner}/${ghCfg.repo}/${ghCfg.branch}/${ghCfg.path}?t=${Date.now()}`;
+      const res = await fetch(rawUrl, { cache:'no-store' });
+      if(res.ok){
+        data = await res.json();
+        if(!data.subjects) data.subjects = [];
+        if(!data.records) data.records = {};
+        if(!data.comments) data.comments = {};
+        setSync('', '동기화됨 (약간 지연될 수 있음)');
+        return true;
+      }
+      if(res.status === 404){
+        data = { subjects: [], records: {}, comments: {} };
+        setSync('', '데이터 없음 (설정에서 교재를 추가하세요)');
+        return true;
+      }
+      throw new Error('raw-fetch-failed:'+res.status);
+    }catch(e2){
+      setSync('err', '연결 실패 – 저장소 설정을 확인하세요');
+      return false;
+    }
   }
 }
 
@@ -388,6 +440,7 @@ function render(){
         <label>기록할 날짜</label>
         <input type="date" id="dateInput" value="${selectedDate}" max="${todayStr()}">
       </div>
+      <div class="streak-badge" id="streakBadge"></div>
       <div class="date-nav">
         <button id="prevDay" title="전날">‹</button>
         <button class="today-chip" id="gotoToday">오늘</button>
@@ -395,6 +448,18 @@ function render(){
       </div>
     </div>
     <div class="cards" id="cardsArea"></div>
+
+    <div class="comment-card">
+      <div class="section-title" style="font-size:14px;"><span class="dash"></span>${selectedDate} 오늘의 응원 한마디</div>
+      <textarea id="commentInput" placeholder="오늘 진도에 대해 칭찬이나 응원을 남겨주세요">${escapeHtml(data.comments[selectedDate] || '')}</textarea>
+      <button class="btn btn-primary" id="commentSave" style="margin-top:8px;">응원 남기기</button>
+    </div>
+
+    <div class="chart-card" id="weeklyCard">
+      <div class="section-title"><span class="dash"></span>이번 주 요약</div>
+      <div id="weeklySummary"></div>
+    </div>
+
     <div class="chart-card">
       <div class="section-title"><span class="dash"></span>진도율 추이</div>
       <canvas id="progressChart" height="220"></canvas>
@@ -406,9 +471,47 @@ function render(){
   document.getElementById('prevDay').onclick = ()=>{ shiftDate(-1); };
   document.getElementById('nextDay').onclick = ()=>{ shiftDate(1); };
   document.getElementById('gotoToday').onclick = ()=>{ selectedDate = todayStr(); render(); };
+  document.getElementById('commentSave').onclick = saveComment;
+
+  const streak = computeStreak();
+  document.getElementById('streakBadge').innerHTML = streak > 0
+    ? `🔥 <span class="mono">${streak}</span>일 연속 기록 중`
+    : `오늘부터 기록을 시작해봐요`;
 
   renderCards();
+  renderWeeklySummary();
   renderChart();
+}
+
+function renderWeeklySummary(){
+  const wrap = document.getElementById('weeklySummary');
+  const rows = computeWeeklySummary();
+  if(rows.length === 0){ wrap.innerHTML = ''; return; }
+  wrap.innerHTML = rows.map(r=>{
+    if(r.actual === null || r.target === null){
+      return `<div class="weekly-row"><span class="weekly-name" style="--c:${r.color}">${escapeHtml(r.name)}</span><span class="weekly-status neutral">아직 기록 없음</span></div>`;
+    }
+    const diff = r.actual - r.target;
+    let statusClass = 'even', statusText = `목표와 비슷하게 가고 있어요`;
+    if(diff >= 5){ statusClass = 'ahead'; statusText = `목표보다 ${diff.toFixed(0)}%p 앞서 있어요`; }
+    else if(diff <= -5){ statusClass = 'behind'; statusText = `목표보다 ${Math.abs(diff).toFixed(0)}%p 뒤처져 있어요`; }
+    return `
+      <div class="weekly-row">
+        <span class="weekly-name" style="--c:${r.color}">${escapeHtml(r.name)}</span>
+        <span class="weekly-nums mono">실제 ${r.actual.toFixed(0)}% · 목표 ${r.target.toFixed(0)}%</span>
+        <span class="weekly-status ${statusClass}">${statusText}</span>
+      </div>`;
+  }).join('');
+}
+
+async function saveComment(){
+  const val = document.getElementById('commentInput').value;
+  data.comments[selectedDate] = val;
+  const btn = document.getElementById('commentSave');
+  btn.disabled = true; btn.textContent = '저장 중…';
+  const ok = await saveDataToGithub();
+  btn.disabled = false; btn.textContent = '응원 남기기';
+  if(ok) toast('응원 메시지를 남겼어요');
 }
 
 function shiftDate(delta){
@@ -472,6 +575,44 @@ function subjectPercentOn(subject, dateStr){
   const current = data.records[last][subject.id].current;
   if(!subject.total) return null;
   return Math.min(100, (current / subject.total) * 100);
+}
+
+function fmtDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function hasAnyRecord(dateStr){
+  return !!data.records[dateStr] && Object.keys(data.records[dateStr]).length > 0;
+}
+
+function computeStreak(){
+  let count = 0;
+  let cursor = new Date(todayStr()+'T00:00:00');
+  if(!hasAnyRecord(todayStr())) cursor.setDate(cursor.getDate()-1);
+  while(true){
+    const ds = fmtDate(cursor);
+    if(hasAnyRecord(ds)){ count++; cursor.setDate(cursor.getDate()-1); }
+    else break;
+  }
+  return count;
+}
+
+function subjectTargetPercentOn(subject, dateStr){
+  if(!subject.start || !subject.end) return null;
+  if(dateStr < subject.start) return 0;
+  if(dateStr > subject.end) return 100;
+  const total = (new Date(subject.end) - new Date(subject.start)) || 1;
+  const elapsed = new Date(dateStr) - new Date(subject.start);
+  return Math.max(0, Math.min(100, (elapsed/total)*100));
+}
+
+function computeWeeklySummary(){
+  return data.subjects.map((s,i)=>{
+    const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+    const actual = subjectPercentOn(s, todayStr());
+    const target = subjectTargetPercentOn(s, todayStr());
+    return { name: s.name, color, actual, target };
+  });
 }
 
 async function saveRecord(subject){
