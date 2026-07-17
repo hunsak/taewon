@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>태원이의 학습 다이어리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#FAF6EE;
+    --paper:#FFFFFF;
+    --ink:#2B2A25;
+    --ink-soft:#7A7364;
+    --line:#E8E0CF;
+    --primary:#45624A;
+    --primary-soft:#DCE6DA;
+    --accent:#E2924F;
+    --accent-soft:#F7E3CE;
+    --danger:#B4523F;
+    --radius:18px;
+    --shadow: 0 2px 14px rgba(60,50,30,0.06), 0 1px 2px rgba(60,50,30,0.05);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(69,98,74,0.05), transparent 40%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Noto Sans KR', sans-serif;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  .display{ font-family:'Gowun Batang', serif; }
+
+  header.top{
+    position:sticky; top:0; z-index:20;
+    background:rgba(250,246,238,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .top-inner{
+    max-width:920px; margin:0 auto; padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand .stamp{
+    width:34px;height:34px;border-radius:50%;
+    background:var(--primary); color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Gowun Batang', serif; font-weight:700; font-size:16px;
+    flex:none;
+  }
+  .brand h1{ font-size:19px; margin:0; font-family:'Gowun Batang', serif; font-weight:700; letter-spacing:-0.2px;}
+  .brand p{ margin:0; font-size:11px; color:var(--ink-soft); }
+  .icon-btn{
+    width:38px;height:38px;border-radius:50%;
+    border:1px solid var(--line); background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer; color:var(--ink); font-size:16px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .icon-btn:hover{ background:var(--primary-soft); transform:translateY(-1px); }
+  .top-actions{ display:flex; gap:8px; align-items:center; }
+  .sync-dot{ width:7px;height:7px;border-radius:50%; background:#B7B09C; display:inline-block; margin-right:5px;}
+  .sync-dot.ok{ background:var(--primary);}
+  .sync-dot.err{ background:var(--danger);}
+  .sync-label{ font-size:11px; color:var(--ink-soft); display:flex; align-items:center;}
+
+  main{ max-width:920px; margin:0 auto; padding:22px 20px 0; }
+
+  .date-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 18px; margin-bottom:20px; box-shadow:var(--shadow);
+    flex-wrap:wrap; gap:10px;
+  }
+  .date-row label{ font-size:12px; color:var(--ink-soft); display:block; margin-bottom:3px;}
+  .date-row input[type=date]{
+    font-family:'IBM Plex Mono', monospace; font-size:15px; border:none; background:transparent;
+    color:var(--ink); font-weight:600;
+  }
+  .date-nav{ display:flex; gap:6px; }
+  .date-nav button{
+    border:1px solid var(--line); background:var(--paper); border-radius:9px; width:30px;height:30px;
+    cursor:pointer; color:var(--ink-soft); font-size:14px;
+  }
+  .date-nav button:hover{ background:var(--primary-soft); color:var(--primary); }
+  .today-chip{
+    font-size:11px; padding:4px 10px; border-radius:99px; background:var(--accent-soft); color:#8A5423;
+    cursor:pointer; border:none; font-weight:600;
+  }
+
+  .empty-state{
+    background:var(--paper); border:1px dashed var(--line); border-radius:var(--radius);
+    padding:40px 24px; text-align:center; color:var(--ink-soft);
+  }
+  .empty-state button{ margin-top:14px; }
+
+  .cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:16px; margin-bottom:28px; }
+  .card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+  }
+  .card::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:5px;
+    background:var(--sub-color, var(--primary));
+  }
+  .card-top{ display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .ring{ flex:none; }
+  .card-name{ font-weight:700; font-size:15px; }
+  .card-meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .card-pct{ font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:13px; margin-left:auto; color:var(--sub-color,var(--primary)); }
+
+  .card-input-row{ display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .card-input-row input[type=number]{
+    width:80px; padding:8px 10px; border:1px solid var(--line); border-radius:10px;
+    font-family:'IBM Plex Mono', monospace; font-size:14px; text-align:right;
+  }
+  .card-input-row span.unit{ font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+  .card-save{
+    margin-left:auto; border:none; background:var(--primary); color:#fff; border-radius:9px;
+    padding:8px 14px; font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  .card-save:hover{ filter:brightness(1.08); }
+  .card-save:disabled{ background:#C8C2B2; cursor:default; }
+  .card-note{ font-size:11px; color:var(--ink-soft); margin-top:8px; }
+
+  .section-title{ display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:15px; font-weight:700; }
+  .section-title .dash{ width:18px; height:2px; background:var(--accent); display:inline-block; }
+
+  .chart-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px; box-shadow:var(--shadow); margin-bottom:28px;
+  }
+  .legend{ display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; }
+  .legend-item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
+  .legend-dot{ width:9px;height:9px;border-radius:50%; }
+  .legend-dash{ width:16px; height:0; border-top:2px dashed #B7B09C; display:inline-block; }
+
+  footer{ max-width:920px; margin:0 auto; padding:6px 20px 40px; font-size:11px; color:var(--ink-soft); text-align:center; }
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(43,42,37,0.45); z-index:100;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal{
+    background:var(--paper); border-radius:20px; width:100%; max-width:480px;
+    max-height:88vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.25);
+  }
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 22px; border-bottom:1px solid var(--line);
+  }
+  .modal-head h2{ font-size:16px; margin:0; font-family:'Gowun Batang',serif; }
+  .modal-body{ padding:22px; }
+  .modal-close{ border:none; background:none; font-size:18px; cursor:pointer; color:var(--ink-soft); }
+
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:5px; }
+  .field input, .field select{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px;
+    font-size:14px; font-family:'Noto Sans KR', sans-serif; background:#FCFAF5;
+  }
+  .field-row{ display:flex; gap:10px; }
+  .field-row .field{ flex:1; }
+
+  .btn{
+    border:none; border-radius:10px; padding:10px 16px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .btn-primary{ background:var(--primary); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:var(--primary-soft); color:var(--primary); }
+  .btn-danger{ background:#F3DEDA; color:var(--danger); }
+  .btn-block{ width:100%; }
+
+  .subject-item{
+    border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; background:#FCFAF5;
+    position:relative;
+  }
+  .subject-item .remove{
+    position:absolute; top:10px; right:10px; border:none; background:none; color:var(--ink-soft); cursor:pointer; font-size:13px;
+  }
+  .add-subject{
+    border:1.5px dashed var(--line); background:transparent; color:var(--ink-soft);
+    border-radius:14px; padding:12px; width:100%; cursor:pointer; font-size:13px; margin-bottom:18px;
+  }
+  .add-subject:hover{ border-color:var(--primary); color:var(--primary); }
+
+  .divider{ border:none; border-top:1px solid var(--line); margin:20px 0; }
+  .hint{ font-size:11.5px; color:var(--ink-soft); line-height:1.5; margin-top:6px; }
+  .error-msg{ color:var(--danger); font-size:12.5px; margin-top:8px; min-height:16px; }
+  .toast{
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:10px 20px; border-radius:99px; font-size:13px;
+    z-index:200; box-shadow:0 8px 24px rgba(0,0,0,0.25); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+  @media (max-width:520px){
+    .cards{ grid-template-columns:1fr; }
+    .field-row{ flex-direction:column; gap:0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="stamp">태</div>
+      <div>
+        <h1>태원이의 학습 다이어리</h1>
+        <p>매일 진도를 기록하고, 온 가족이 확인해요</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="sync-label"><span id="syncDot" class="sync-dot"></span><span id="syncText">불러오는 중…</span></span>
+      <button class="icon-btn" id="refreshBtn" title="새로고침">↻</button>
+      <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
+    </div>
+  </div>
+</header>
+
+<main id="mainArea"></main>
+
+<footer id="footerNote"></footer>
+
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIG ================= */
+const GH_OWNER_DEFAULT = "hunsak";
+const GH_REPO_DEFAULT  = "taewon";
+const GH_BRANCH_DEFAULT = "main";
+const GH_PATH_DEFAULT  = "data.json";
+const SETTINGS_PASSWORD = "675577hh";
+
+const MODE_LABEL = { page:"페이지", unit:"단원", chapter:"챕터" };
+const SUBJECT_COLORS = ["#45624A","#E2924F","#5B7FA6","#B25D5D","#8A6BAF","#4A8B8B","#A67C3D","#6E7F45"];
+
+/* ================= STATE ================= */
+let ghCfg = loadGhCfg();
+let data = { subjects: [], records: {} };
+let fileSha = null;
+let selectedDate = todayStr();
+let unlocked = false;
+let chartInstance = null;
+
+function loadGhCfg(){
+  try{
+    const raw = localStorage.getItem('std_gh_cfg');
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { owner: GH_OWNER_DEFAULT, repo: GH_REPO_DEFAULT, branch: GH_BRANCH_DEFAULT, path: GH_PATH_DEFAULT, token: "" };
+}
+function saveGhCfg(cfg){
+  ghCfg = cfg;
+  localStorage.setItem('std_gh_cfg', JSON.stringify(cfg));
+}
+
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function setSync(state, text){
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot ' + (state==='ok'?'ok':state==='err'?'err':'');
+  document.getElementById('syncText').textContent = text;
+}
+
+/* ================= GITHUB I/O ================= */
+async function ghGetFile(){
+  const url = `https://api.github.com/repos/${ghCfg.owner}/${ghCfg.repo}/contents/${encodeURIComponent(ghCfg.path)}?ref=${ghCfg.branch}&t=${Date.now()}`;
+  const headers = { 'Accept':'application/vnd.github+json' };
+  if(ghCfg.token) headers['Authorization'] = `Bearer ${ghCfg.token}`;
+  const res = await fetch(url, { headers });
+  if(res.status === 404) return { exists:false, json:null, sha:null };
+  if(!res.ok) throw new Error('github-get-failed:'+res.status);
+  const body = await res.json();
+  const decoded = decodeURIComponent(escape(atob(body.content.replace(/\n/g,''))));
+  return { exists:true, json: JSON.parse(decoded), sha: body.sha };
+}
+
+async function loadDataFromGithub(){
+  setSync('', '불러오는 중…');
+  try{
+    // public raw read first (works without token, always latest on default branch)
+    const rawUrl = `https://raw.githubusercontent.com/${ghCfg.owner}/${ghCfg.repo}/${ghCfg.branch}/${ghCfg.path}?t=${Date.now()}`;
+    const res = await fetch(rawUrl, { cache:'no-store' });
+    if(res.ok){
+      data = await res.json();
+      if(!data.subjects) data.subjects = [];
+      if(!data.records) data.records = {};
+      setSync('ok', '동기화됨');
+      return true;
+    }
+    if(res.status === 404){
+      data = { subjects: [], records: {} };
+      setSync('', '데이터 없음 (설정에서 교재를 추가하세요)');
+      return true;
+    }
+    throw new Error('raw-fetch-failed:'+res.status);
+  }catch(e){
+    setSync('err', '연결 실패 – 저장소 설정을 확인하세요');
+    return false;
+  }
+}
+
+async function saveDataToGithub(){
+  if(!ghCfg.token){
+    toast('저장하려면 설정 > GitHub 연동에서 토큰을 입력하세요');
+    return false;
+  }
+  setSync('', '저장 중…');
+  try{
+    let sha = fileSha;
+    try{
+      const cur = await ghGetFile();
+      sha = cur.exists ? cur.sha : null;
+    }catch(e){ /* keep previous sha guess */ }
+
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+    const url = `https://api.github.com/repos/${ghCfg.owner}/${ghCfg.repo}/contents/${encodeURIComponent(ghCfg.path)}`;
+    const res = await fetch(url, {
+      method:'PUT',
+      headers:{
+        'Accept':'application/vnd.github+json',
+        'Authorization':`Bearer ${ghCfg.token}`,
+        'Content-Type':'application/json'
+      },
+      body: JSON.stringify({
+        message: `progress update ${new Date().toISOString()}`,
+        content,
+        branch: ghCfg.branch,
+        ...(sha ? { sha } : {})
+      })
+    });
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.message || ('save-failed:'+res.status));
+    }
+    const body = await res.json();
+    fileSha = body.content.sha;
+    setSync('ok', '동기화됨');
+    return true;
+  }catch(e){
+    setSync('err', '저장 실패: ' + e.message);
+    toast('저장에 실패했어요: ' + e.message);
+    return false;
+  }
+}
+
+/* ================= RENDER: MAIN ================= */
+function render(){
+  const main = document.getElementById('mainArea');
+  const footer = document.getElementById('footerNote');
+  footer.textContent = `${ghCfg.owner}/${ghCfg.repo} 저장소와 연결됨 · 이 링크를 가족과 공유하면 누구나 진도를 확인할 수 있어요`;
+
+  if(!data.subjects || data.subjects.length === 0){
+    main.innerHTML = `
+      <div class="empty-state">
+        <div class="display" style="font-size:16px; margin-bottom:6px;">아직 등록된 교재가 없어요</div>
+        <div style="font-size:12.5px;">설정에서 교재 이름, 진도 방식, 학습 기간을 먼저 등록해주세요.</div>
+        <button class="btn btn-primary" id="emptyOpenSettings">설정 열기</button>
+      </div>`;
+    document.getElementById('emptyOpenSettings').onclick = openSettings;
+    return;
+  }
+
+  main.innerHTML = `
+    <div class="date-row">
+      <div>
+        <label>기록할 날짜</label>
+        <input type="date" id="dateInput" value="${selectedDate}" max="${todayStr()}">
+      </div>
+      <div class="date-nav">
+        <button id="prevDay" title="전날">‹</button>
+        <button class="today-chip" id="gotoToday">오늘</button>
+        <button id="nextDay" title="다음날">›</button>
+      </div>
+    </div>
+    <div class="cards" id="cardsArea"></div>
+    <div class="chart-card">
+      <div class="section-title"><span class="dash"></span>진도율 추이</div>
+      <canvas id="progressChart" height="220"></canvas>
+      <div class="legend" id="chartLegend"></div>
+    </div>
+  `;
+
+  document.getElementById('dateInput').onchange = (e)=>{ selectedDate = e.target.value; render(); };
+  document.getElementById('prevDay').onclick = ()=>{ shiftDate(-1); };
+  document.getElementById('nextDay').onclick = ()=>{ shiftDate(1); };
+  document.getElementById('gotoToday').onclick = ()=>{ selectedDate = todayStr(); render(); };
+
+  renderCards();
+  renderChart();
+}
+
+function shiftDate(delta){
+  const d = new Date(selectedDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  const next = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(next <= todayStr()){ selectedDate = next; render(); }
+}
+
+function renderCards(){
+  const wrap = document.getElementById('cardsArea');
+  wrap.innerHTML = data.subjects.map((s, i)=>{
+    const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+    const dayRec = (data.records[selectedDate] || {})[s.id];
+    const current = dayRec ? dayRec.current : '';
+    const pct = subjectPercentOn(s, selectedDate);
+    const pctDisplay = pct === null ? '–' : pct.toFixed(0) + '%';
+    const ring = ringSvg(pct === null ? 0 : pct, color);
+    return `
+      <div class="card" style="--sub-color:${color}">
+        <div class="card-top">
+          <div class="ring">${ring}</div>
+          <div>
+            <div class="card-name">${escapeHtml(s.name)}</div>
+            <div class="card-meta">${MODE_LABEL[s.mode]} 기준 · 총 ${s.total}${MODE_LABEL[s.mode]} · ${s.start} ~ ${s.end}</div>
+          </div>
+          <div class="card-pct">${pctDisplay}</div>
+        </div>
+        <div class="card-input-row">
+          <input type="number" min="0" max="${s.total}" id="input-${s.id}" value="${current}" placeholder="0">
+          <span class="unit">/ ${s.total} ${MODE_LABEL[s.mode]}까지</span>
+          <button class="card-save" id="save-${s.id}">저장</button>
+        </div>
+        <div class="card-note">오늘까지 진행한 ${MODE_LABEL[s.mode]} 번호를 입력하세요 (누적 기준)</div>
+      </div>
+    `;
+  }).join('');
+
+  data.subjects.forEach(s=>{
+    document.getElementById(`save-${s.id}`).onclick = ()=>saveRecord(s);
+  });
+}
+
+function ringSvg(pct, color){
+  const r = 20, c = 2*Math.PI*r;
+  const offset = c - (Math.min(100,Math.max(0,pct))/100)*c;
+  return `
+  <svg width="48" height="48" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="${r}" fill="none" stroke="#EEE8D8" stroke-width="5"/>
+    <circle cx="24" cy="24" r="${r}" fill="none" stroke="${color}" stroke-width="5"
+      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${offset}"
+      transform="rotate(-90 24 24)"/>
+  </svg>`;
+}
+
+function subjectPercentOn(subject, dateStr){
+  // find latest record on or before dateStr
+  const dates = Object.keys(data.records).filter(d => d <= dateStr && data.records[d][subject.id]).sort();
+  if(dates.length === 0) return null;
+  const last = dates[dates.length-1];
+  const current = data.records[last][subject.id].current;
+  if(!subject.total) return null;
+  return Math.min(100, (current / subject.total) * 100);
+}
+
+async function saveRecord(subject){
+  const input = document.getElementById(`input-${subject.id}`);
+  const val = Number(input.value);
+  if(isNaN(val) || val < 0){ toast('올바른 숫자를 입력하세요'); return; }
+  if(!data.records[selectedDate]) data.records[selectedDate] = {};
+  data.records[selectedDate][subject.id] = { current: val };
+  const btn = document.getElementById(`save-${subject.id}`);
+  btn.disabled = true; btn.textContent = '저장중';
+  const ok = await saveDataToGithub();
+  btn.disabled = false; btn.textContent = '저장';
+  if(ok){ toast(`${subject.name} 진도를 저장했어요`); renderCards(); renderChart(); }
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+/* ================= CHART ================= */
+function renderChart(){
+  const canvas = document.getElementById('progressChart');
+  if(!canvas) return;
+
+  // build unified sorted date axis: from earliest subject start to today
+  const starts = data.subjects.map(s=>s.start).filter(Boolean);
+  const ends = data.subjects.map(s=>s.end).filter(Boolean);
+  const recordDates = Object.keys(data.records);
+  const allDates = [...starts, ...ends, ...recordDates, todayStr()].filter(Boolean);
+  if(allDates.length === 0) return;
+  const minDate = allDates.reduce((a,b)=> a<b?a:b);
+  const maxDate = todayStr() < allDates.reduce((a,b)=>a>b?a:b) ? allDates.reduce((a,b)=>a>b?a:b) : todayStr();
+
+  const axis = [];
+  let d = new Date(minDate+'T00:00:00');
+  const end = new Date(maxDate+'T00:00:00');
+  while(d <= end){
+    axis.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+    d.setDate(d.getDate()+1);
+  }
+
+  const datasets = [];
+  const legendItems = [];
+  data.subjects.forEach((s, i)=>{
+    const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+    const actual = axis.map(dt => subjectPercentOn(s, dt));
+    const target = axis.map(dt => {
+      if(!s.start || !s.end || dt < s.start) return null;
+      if(dt > s.end) return 100;
+      const total = (new Date(s.end) - new Date(s.start)) || 1;
+      const elapsed = new Date(dt) - new Date(s.start);
+      return Math.max(0, Math.min(100, (elapsed/total)*100));
+    });
+    datasets.push({
+      label: s.name + ' (실제)', data: actual, borderColor: color, backgroundColor: color,
+      spanGaps:true, tension:0.25, pointRadius:2, borderWidth:2.5
+    });
+    datasets.push({
+      label: s.name + ' (목표)', data: target, borderColor: color, borderDash:[5,4],
+      spanGaps:true, tension:0, pointRadius:0, borderWidth:1.5, opacity:0.6
+    });
+    legendItems.push({name:s.name, color});
+  });
+
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{ labels: axis, datasets },
+    options:{
+      responsive:true,
+      plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false } },
+      interaction:{ mode:'index', intersect:false },
+      scales:{
+        y:{ min:0, max:100, ticks:{ callback:v=>v+'%' }, grid:{ color:'#F0EBDD' } },
+        x:{ ticks:{ maxTicksLimit:8, font:{family:'IBM Plex Mono', size:10} }, grid:{ display:false } }
+      }
+    }
+  });
+
+  document.getElementById('chartLegend').innerHTML = legendItems.map(l=>`
+    <span class="legend-item"><span class="legend-dot" style="background:${l.color}"></span>${escapeHtml(l.name)} 실제</span>
+  `).join('') + `<span class="legend-item"><span class="legend-dash"></span>목표 진도</span>`;
+}
+
+/* ================= SETTINGS MODAL ================= */
+function openSettings(){
+  const root = document.getElementById('modalRoot');
+  if(unlocked){
+    renderSettingsForm();
+    return;
+  }
+  root.innerHTML = `
+    <div class="overlay" id="ov">
+      <div class="modal" style="max-width:360px;">
+        <div class="modal-head"><h2>설정 잠금 해제</h2><button class="modal-close" id="closeLock">✕</button></div>
+        <div class="modal-body">
+          <div class="field">
+            <label>비밀번호</label>
+            <input type="password" id="pwInput" placeholder="비밀번호를 입력하세요">
+          </div>
+          <button class="btn btn-primary btn-block" id="pwSubmit">확인</button>
+          <div class="error-msg" id="pwError"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('closeLock').onclick = closeModal;
+  document.getElementById('ov').onclick = (e)=>{ if(e.target.id==='ov') closeModal(); };
+  const submit = ()=>{
+    const val = document.getElementById('pwInput').value;
+    if(val === SETTINGS_PASSWORD){
+      unlocked = true;
+      renderSettingsForm();
+    }else{
+      document.getElementById('pwError').textContent = '비밀번호가 올바르지 않아요';
+    }
+  };
+  document.getElementById('pwSubmit').onclick = submit;
+  document.getElementById('pwInput').addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); });
+  document.getElementById('pwInput').focus();
+}
+
+function closeModal(){
+  document.getElementById('modalRoot').innerHTML = '';
+}
+
+function renderSettingsForm(){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="overlay" id="ov2">
+      <div class="modal">
+        <div class="modal-head"><h2>설정</h2><button class="modal-close" id="closeSettings">✕</button></div>
+        <div class="modal-body">
+          <div class="section-title" style="font-size:13px;"><span class="dash"></span>교재 설정</div>
+          <div id="subjectsList"></div>
+          <button class="add-subject" id="addSubject">+ 교재 추가</button>
+
+          <hr class="divider">
+          <div class="section-title" style="font-size:13px;"><span class="dash"></span>GitHub 연동</div>
+          <div class="field-row">
+            <div class="field"><label>owner</label><input id="ghOwner" value="${ghCfg.owner}"></div>
+            <div class="field"><label>repo</label><input id="ghRepo" value="${ghCfg.repo}"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>branch</label><input id="ghBranch" value="${ghCfg.branch}"></div>
+            <div class="field"><label>data 파일 경로</label><input id="ghPath" value="${ghCfg.path}"></div>
+          </div>
+          <div class="field">
+            <label>Personal Access Token (이 기기에만 저장돼요, 진도 저장할 때 필요)</label>
+            <input type="password" id="ghToken" value="${ghCfg.token || ''}" placeholder="ghp_...">
+            <div class="hint">저장(쓰기) 권한이 있는 fine-grained 토큰을 발급해서 붙여넣으세요. 확인만 하는 가족 기기에는 입력하지 않아도 돼요.</div>
+          </div>
+
+          <button class="btn btn-primary btn-block" id="saveSettings" style="margin-top:8px;">설정 저장</button>
+          <div class="error-msg" id="settingsError"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('closeSettings').onclick = closeModal;
+  document.getElementById('ov2').onclick = (e)=>{ if(e.target.id==='ov2') closeModal(); };
+  document.getElementById('addSubject').onclick = ()=>{
+    data.subjects.push({ id: uid(), name:'', mode:'page', total:100, start: todayStr(), end: todayStr() });
+    renderSubjectsList();
+  };
+  document.getElementById('saveSettings').onclick = onSaveSettings;
+  renderSubjectsList();
+}
+
+function renderSubjectsList(){
+  const wrap = document.getElementById('subjectsList');
+  wrap.innerHTML = data.subjects.map((s, idx)=>`
+    <div class="subject-item" data-idx="${idx}">
+      <button class="remove" data-remove="${idx}">삭제</button>
+      <div class="field"><label>교재 이름</label><input class="s-name" value="${escapeHtml(s.name)}" placeholder="예: 디딤돌 수학"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>진도 방식</label>
+          <select class="s-mode">
+            <option value="page" ${s.mode==='page'?'selected':''}>페이지 기준</option>
+            <option value="unit" ${s.mode==='unit'?'selected':''}>단원 기준</option>
+            <option value="chapter" ${s.mode==='chapter'?'selected':''}>챕터 기준</option>
+          </select>
+        </div>
+        <div class="field"><label>총량</label><input type="number" class="s-total" value="${s.total}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>시작일</label><input type="date" class="s-start" value="${s.start}"></div>
+        <div class="field"><label>종료일</label><input type="date" class="s-end" value="${s.end}"></div>
+      </div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = Number(btn.dataset.remove);
+      data.subjects.splice(idx,1);
+      renderSubjectsList();
+    };
+  });
+}
+
+function collectSubjectsFromForm(){
+  const items = document.querySelectorAll('#subjectsList .subject-item');
+  const list = [];
+  items.forEach((el, idx)=>{
+    const existing = data.subjects[idx] || {};
+    list.push({
+      id: existing.id || uid(),
+      name: el.querySelector('.s-name').value.trim() || `교재 ${idx+1}`,
+      mode: el.querySelector('.s-mode').value,
+      total: Number(el.querySelector('.s-total').value) || 1,
+      start: el.querySelector('.s-start').value,
+      end: el.querySelector('.s-end').value
+    });
+  });
+  return list;
+}
+
+async function onSaveSettings(){
+  const cfg = {
+    owner: document.getElementById('ghOwner').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    branch: document.getElementById('ghBranch').value.trim() || 'main',
+    path: document.getElementById('ghPath').value.trim() || 'data.json',
+    token: document.getElementById('ghToken').value.trim()
+  };
+  saveGhCfg(cfg);
+  data.subjects = collectSubjectsFromForm();
+
+  const btn = document.getElementById('saveSettings');
+  btn.disabled = true; btn.textContent = '저장 중…';
+  const ok = await saveDataToGithub();
+  btn.disabled = false; btn.textContent = '설정 저장';
+  if(ok){
+    toast('설정을 저장했어요');
+    closeModal();
+    render();
+  }else{
+    document.getElementById('settingsError').textContent = '저장에 실패했어요. 토큰 권한과 저장소 이름을 확인하세요.';
+  }
+}
+
+/* ================= INIT ================= */
+document.getElementById('settingsBtn').onclick = openSettings;
+document.getElementById('refreshBtn').onclick = async ()=>{
+  setSync('', '새로고침 중…');
+  await loadDataFromGithub();
+  render();
+};
+
+(async function init(){
+  await loadDataFromGithub();
+  render();
+})();
+</script>
+</body>
+</html>
