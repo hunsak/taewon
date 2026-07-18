@@ -6,7 +6,6 @@
 <title>태원이의 학습 다이어리</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#FAF6EE;
@@ -635,14 +634,46 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
+/* ================= CHART LIBRARY LOADER (with fallback CDNs) ================= */
+let chartLibPromise = null;
+function loadScriptTag(url){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = ()=>resolve();
+    s.onerror = ()=>reject(new Error('load failed: ' + url));
+    document.head.appendChild(s);
+  });
+}
+function ensureChartLib(){
+  if(typeof Chart !== 'undefined') return Promise.resolve(true);
+  if(chartLibPromise) return chartLibPromise;
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
+    'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js'
+  ];
+  chartLibPromise = (async ()=>{
+    for(const url of urls){
+      try{
+        await loadScriptTag(url);
+        if(typeof Chart !== 'undefined') return true;
+      }catch(e){ /* try the next CDN */ }
+    }
+    return false;
+  })();
+  return chartLibPromise;
+}
+
 /* ================= CHART ================= */
-function renderChart(){
+async function renderChart(){
   const canvas = document.getElementById('progressChart');
   if(!canvas) return;
 
   try{
-    if(typeof Chart === 'undefined'){
-      throw new Error('Chart.js 라이브러리를 불러오지 못했습니다 (네트워크 문제일 수 있음)');
+    const loaded = await ensureChartLib();
+    if(!loaded){
+      throw new Error('그래프 라이브러리를 여러 경로로 시도했지만 불러오지 못했습니다 (네트워크 문제로 보입니다)');
     }
 
     // build unified sorted date axis: from earliest subject start to today (or latest end if further out)
