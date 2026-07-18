@@ -7,6 +7,22 @@
       "total": 29,
       "start": "2026-07-17",
       "end": "2026-09-13"
+    },
+    {
+      "id": "7pnhg1i",
+      "name": "클래스카드",
+      "mode": "chapter",
+      "total": 6,
+      "start": "2026-07-18",
+      "end": "2026-07-18"
+    },
+    {
+      "id": "e97idkg",
+      "name": "논술숙제",
+      "mode": "unit",
+      "total": 1,
+      "start": "2026-07-18",
+      "end": "2026-07-18"
     }
   ],
   "records": {
