@@ -640,64 +640,76 @@ function renderChart(){
   const canvas = document.getElementById('progressChart');
   if(!canvas) return;
 
-  // build unified sorted date axis: from earliest subject start to today
-  const starts = data.subjects.map(s=>s.start).filter(Boolean);
-  const ends = data.subjects.map(s=>s.end).filter(Boolean);
-  const recordDates = Object.keys(data.records);
-  const allDates = [...starts, ...ends, ...recordDates, todayStr()].filter(Boolean);
-  if(allDates.length === 0) return;
-  const minDate = allDates.reduce((a,b)=> a<b?a:b);
-  const maxDate = todayStr() < allDates.reduce((a,b)=>a>b?a:b) ? allDates.reduce((a,b)=>a>b?a:b) : todayStr();
-
-  const axis = [];
-  let d = new Date(minDate+'T00:00:00');
-  const end = new Date(maxDate+'T00:00:00');
-  while(d <= end){
-    axis.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
-    d.setDate(d.getDate()+1);
-  }
-
-  const datasets = [];
-  const legendItems = [];
-  data.subjects.forEach((s, i)=>{
-    const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
-    const actual = axis.map(dt => subjectPercentOn(s, dt));
-    const target = axis.map(dt => {
-      if(!s.start || !s.end || dt < s.start) return null;
-      if(dt > s.end) return 100;
-      const total = (new Date(s.end) - new Date(s.start)) || 1;
-      const elapsed = new Date(dt) - new Date(s.start);
-      return Math.max(0, Math.min(100, (elapsed/total)*100));
-    });
-    datasets.push({
-      label: s.name + ' (실제)', data: actual, borderColor: color, backgroundColor: color,
-      spanGaps:true, tension:0.25, pointRadius:2, borderWidth:2.5
-    });
-    datasets.push({
-      label: s.name + ' (목표)', data: target, borderColor: color, borderDash:[5,4],
-      spanGaps:true, tension:0, pointRadius:0, borderWidth:1.5, opacity:0.6
-    });
-    legendItems.push({name:s.name, color});
-  });
-
-  if(chartInstance) chartInstance.destroy();
-  chartInstance = new Chart(canvas.getContext('2d'), {
-    type:'line',
-    data:{ labels: axis, datasets },
-    options:{
-      responsive:true,
-      plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false } },
-      interaction:{ mode:'index', intersect:false },
-      scales:{
-        y:{ min:0, max:100, ticks:{ callback:v=>v+'%' }, grid:{ color:'#F0EBDD' } },
-        x:{ ticks:{ maxTicksLimit:8, font:{family:'IBM Plex Mono', size:10} }, grid:{ display:false } }
-      }
+  try{
+    if(typeof Chart === 'undefined'){
+      throw new Error('Chart.js 라이브러리를 불러오지 못했습니다 (네트워크 문제일 수 있음)');
     }
-  });
 
-  document.getElementById('chartLegend').innerHTML = legendItems.map(l=>`
-    <span class="legend-item"><span class="legend-dot" style="background:${l.color}"></span>${escapeHtml(l.name)} 실제</span>
-  `).join('') + `<span class="legend-item"><span class="legend-dash"></span>목표 진도</span>`;
+    // build unified sorted date axis: from earliest subject start to today (or latest end if further out)
+    const starts = data.subjects.map(s=>s.start).filter(Boolean);
+    const ends = data.subjects.map(s=>s.end).filter(Boolean);
+    const recordDates = Object.keys(data.records);
+    const allDates = [...starts, ...ends, ...recordDates, todayStr()].filter(Boolean);
+    if(allDates.length === 0) return;
+    const minDate = allDates.reduce((a,b)=> a<b?a:b);
+    const maxCandidate = allDates.reduce((a,b)=> a>b?a:b);
+    const maxDate = todayStr() > maxCandidate ? todayStr() : maxCandidate;
+
+    const axis = [];
+    let d = new Date(minDate+'T00:00:00');
+    const end = new Date(maxDate+'T00:00:00');
+    const MAX_DAYS = 730; // safety cap (~2 years) so a bad/very-wide date never freezes the page
+    let guard = 0;
+    while(d <= end && guard < MAX_DAYS){
+      axis.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+      d.setDate(d.getDate()+1);
+      guard++;
+    }
+    if(axis.length === 0) return;
+
+    const datasets = [];
+    const legendItems = [];
+    data.subjects.forEach((s, i)=>{
+      const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+      const actual = axis.map(dt => subjectPercentOn(s, dt));
+      const target = axis.map(dt => subjectTargetPercentOn(s, dt));
+      datasets.push({
+        label: s.name + ' (실제)', data: actual, borderColor: color, backgroundColor: color,
+        spanGaps:true, tension:0.25, pointRadius:2, borderWidth:2.5
+      });
+      datasets.push({
+        label: s.name + ' (목표)', data: target, borderColor: color, borderDash:[5,4],
+        spanGaps:true, tension:0, pointRadius:0, borderWidth:1.5, opacity:0.6
+      });
+      legendItems.push({name:s.name, color});
+    });
+
+    if(chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(canvas.getContext('2d'), {
+      type:'line',
+      data:{ labels: axis, datasets },
+      options:{
+        responsive:true,
+        plugins:{ legend:{ display:false }, tooltip:{ mode:'index', intersect:false } },
+        interaction:{ mode:'index', intersect:false },
+        scales:{
+          y:{ min:0, max:100, ticks:{ callback:v=>v+'%' }, grid:{ color:'#F0EBDD' } },
+          x:{ ticks:{ maxTicksLimit:8, font:{family:'IBM Plex Mono', size:10} }, grid:{ display:false } }
+        }
+      }
+    });
+
+    document.getElementById('chartLegend').innerHTML = legendItems.map(l=>`
+      <span class="legend-item"><span class="legend-dot" style="background:${l.color}"></span>${escapeHtml(l.name)} 실제</span>
+    `).join('') + `<span class="legend-item"><span class="legend-dash"></span>목표 진도</span>`;
+  }catch(err){
+    console.error('renderChart failed:', err);
+    canvas.style.display = 'none';
+    const legendEl = document.getElementById('chartLegend');
+    if(legendEl){
+      legendEl.innerHTML = `<div style="color:var(--danger); font-size:12.5px;">그래프를 그리는 중 문제가 발생했어요 (${escapeHtml(err.message)}). 새로고침해보시고, 계속되면 알려주세요.</div>`;
+    }
+  }
 }
 
 function openTokenPrompt(onSuccess){
