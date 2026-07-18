@@ -675,13 +675,21 @@ async function renderChart(){
     if(!loaded){
       throw new Error('그래프 라이브러리를 여러 경로로 시도했지만 불러오지 못했습니다 (네트워크 문제로 보입니다)');
     }
+    canvas.style.display = '';
+
+    const chartSubjects = data.subjects.filter(s => s.start && s.end && s.start !== s.end);
 
     // build unified sorted date axis: from earliest subject start to today (or latest end if further out)
-    const starts = data.subjects.map(s=>s.start).filter(Boolean);
-    const ends = data.subjects.map(s=>s.end).filter(Boolean);
+    const starts = chartSubjects.map(s=>s.start).filter(Boolean);
+    const ends = chartSubjects.map(s=>s.end).filter(Boolean);
     const recordDates = Object.keys(data.records);
     const allDates = [...starts, ...ends, ...recordDates, todayStr()].filter(Boolean);
-    if(allDates.length === 0) return;
+    if(chartSubjects.length === 0 || allDates.length === 0){
+      document.getElementById('chartLegend').innerHTML = `<div style="color:var(--ink-soft); font-size:12.5px;">여러 날에 걸쳐 진행하는 교재를 등록하면 이곳에 추세 그래프가 나타나요. (하루짜리 항목은 그래프에서 제외됩니다)</div>`;
+      canvas.style.display = 'none';
+      return;
+    }
+    canvas.style.display = '';
     const minDate = allDates.reduce((a,b)=> a<b?a:b);
     const maxCandidate = allDates.reduce((a,b)=> a>b?a:b);
     const maxDate = todayStr() > maxCandidate ? todayStr() : maxCandidate;
@@ -700,8 +708,9 @@ async function renderChart(){
 
     const datasets = [];
     const legendItems = [];
-    data.subjects.forEach((s, i)=>{
-      const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+    chartSubjects.forEach((s)=>{
+      const originalIndex = data.subjects.findIndex(x => x.id === s.id);
+      const color = SUBJECT_COLORS[originalIndex % SUBJECT_COLORS.length];
       const actual = axis.map(dt => dt > todayStr() ? null : subjectPercentOn(s, dt));
       const target = axis.map(dt => subjectTargetPercentOn(s, dt));
       datasets.push({
