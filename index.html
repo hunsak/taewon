@@ -252,6 +252,7 @@
     <div class="top-actions">
       <span class="sync-label"><span id="syncDot" class="sync-dot"></span><span id="syncText">불러오는 중…</span></span>
       <button class="icon-btn" id="refreshBtn" title="새로고침">↻</button>
+      <button class="icon-btn" id="tokenBtn" title="이 기기 저장 권한 연결">🔑</button>
       <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
     </div>
   </div>
@@ -505,6 +506,7 @@ function renderWeeklySummary(){
 }
 
 async function saveComment(){
+  if(!ghCfg.token){ openTokenPrompt(saveComment); return; }
   const val = document.getElementById('commentInput').value;
   data.comments[selectedDate] = val;
   const btn = document.getElementById('commentSave');
@@ -619,6 +621,7 @@ async function saveRecord(subject){
   const input = document.getElementById(`input-${subject.id}`);
   const val = Number(input.value);
   if(isNaN(val) || val < 0){ toast('올바른 숫자를 입력하세요'); return; }
+  if(!ghCfg.token){ openTokenPrompt(()=>saveRecord(subject)); return; }
   if(!data.records[selectedDate]) data.records[selectedDate] = {};
   data.records[selectedDate][subject.id] = { current: val };
   const btn = document.getElementById(`save-${subject.id}`);
@@ -695,6 +698,38 @@ function renderChart(){
   document.getElementById('chartLegend').innerHTML = legendItems.map(l=>`
     <span class="legend-item"><span class="legend-dot" style="background:${l.color}"></span>${escapeHtml(l.name)} 실제</span>
   `).join('') + `<span class="legend-item"><span class="legend-dash"></span>목표 진도</span>`;
+}
+
+function openTokenPrompt(onSuccess){
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = `
+    <div class="overlay" id="ovTok">
+      <div class="modal" style="max-width:380px;">
+        <div class="modal-head"><h2>이 기기 저장 권한 연결</h2><button class="modal-close" id="closeTok">✕</button></div>
+        <div class="modal-body">
+          <div class="hint" style="margin-bottom:12px;">
+            비밀번호 없이도, 진도를 저장하려는 기기에 GitHub 토큰만 한 번 넣어두면 그 다음부터는 그냥 체크하고 저장 버튼만 누르면 돼요. 부모님 PC에서 발급한 토큰을 그대로 붙여넣어도 되고, 이 기기 전용으로 새로 만들어도 됩니다.
+          </div>
+          <div class="field">
+            <label>GitHub Personal Access Token</label>
+            <input type="password" id="tokOnlyInput" placeholder="ghp_... 또는 github_pat_...">
+          </div>
+          <button class="btn btn-primary btn-block" id="tokOnlySubmit">이 기기에 저장 권한 연결하기</button>
+          <div class="error-msg" id="tokOnlyError"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('closeTok').onclick = closeModal;
+  document.getElementById('ovTok').onclick = (e)=>{ if(e.target.id==='ovTok') closeModal(); };
+  document.getElementById('tokOnlySubmit').onclick = ()=>{
+    const val = document.getElementById('tokOnlyInput').value.trim();
+    if(!val){ document.getElementById('tokOnlyError').textContent = '토큰을 입력해주세요'; return; }
+    saveGhCfg({ ...ghCfg, token: val });
+    closeModal();
+    toast('이 기기에 저장 권한을 연결했어요');
+    if(onSuccess) onSuccess();
+  };
 }
 
 /* ================= SETTINGS MODAL ================= */
@@ -858,6 +893,7 @@ async function onSaveSettings(){
 
 /* ================= INIT ================= */
 document.getElementById('settingsBtn').onclick = openSettings;
+document.getElementById('tokenBtn').onclick = ()=>openTokenPrompt();
 document.getElementById('refreshBtn').onclick = async ()=>{
   setSync('', '새로고침 중…');
   await loadDataFromGithub();
