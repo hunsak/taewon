@@ -1,28 +1,28 @@
 {
   "subjects": [
     {
-      "id": "4wwfgd1",
-      "name": "재능",
-      "mode": "unit",
-      "total": 10,
-      "start": "2026-07-17",
-      "end": "2026-07-17"
-    },
-    {
-      "id": "rqwxqb5",
-      "name": "상위권",
-      "mode": "page",
-      "total": 100,
-      "start": "2026-07-17",
-      "end": "2026-12-31"
-    },
-    {
       "id": "elhgn19",
       "name": "한국사",
       "mode": "chapter",
       "total": 29,
       "start": "2026-07-17",
       "end": "2026-09-13"
+    },
+    {
+      "id": "7jm4slq",
+      "name": "교재 2",
+      "mode": "page",
+      "total": 100,
+      "start": "2026-07-18",
+      "end": "2026-07-18"
+    },
+    {
+      "id": "rbutg1x",
+      "name": "교재 3",
+      "mode": "page",
+      "total": 100,
+      "start": "2026-07-18",
+      "end": "2026-07-18"
     }
   ],
   "records": {
