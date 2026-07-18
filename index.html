@@ -702,7 +702,7 @@ async function renderChart(){
     const legendItems = [];
     data.subjects.forEach((s, i)=>{
       const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
-      const actual = axis.map(dt => subjectPercentOn(s, dt));
+      const actual = axis.map(dt => dt > todayStr() ? null : subjectPercentOn(s, dt));
       const target = axis.map(dt => subjectTargetPercentOn(s, dt));
       datasets.push({
         label: s.name + ' (실제)', data: actual, borderColor: color, backgroundColor: color,
