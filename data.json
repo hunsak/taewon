@@ -9,38 +9,6 @@
       "end": "2026-09-13"
     },
     {
-      "id": "7pnhg1i",
-      "name": "클래스카드",
-      "mode": "chapter",
-      "total": 6,
-      "start": "2026-07-18",
-      "end": "2026-07-18"
-    },
-    {
-      "id": "e97idkg",
-      "name": "논술숙제",
-      "mode": "unit",
-      "total": 1,
-      "start": "2026-07-18",
-      "end": "2026-07-18"
-    },
-    {
-      "id": "5br5omu",
-      "name": "상위권",
-      "mode": "unit",
-      "total": 1,
-      "start": "2026-07-18",
-      "end": "2026-07-18"
-    },
-    {
-      "id": "it2cfr1",
-      "name": "재능",
-      "mode": "unit",
-      "total": 1,
-      "start": "2026-07-18",
-      "end": "2026-07-18"
-    },
-    {
       "id": "635hkw3",
       "name": "Chat GPT 와 대화하기",
       "mode": "chapter",
@@ -53,6 +21,14 @@
       "name": "책보물",
       "mode": "chapter",
       "total": 70,
+      "start": "2026-07-19",
+      "end": "2026-12-31"
+    },
+    {
+      "id": "zirkrdl",
+      "name": "논술숙제",
+      "mode": "chapter",
+      "total": 50,
       "start": "2026-07-19",
       "end": "2026-12-31"
     }
