@@ -11,7 +11,7 @@
     {
       "id": "635hkw3",
       "name": "Chat GPT 와 대화하기",
-      "mode": "chapter",
+      "mode": "checkin",
       "total": 150,
       "start": "2026-07-19",
       "end": "2026-12-31"
@@ -19,7 +19,7 @@
     {
       "id": "yk2jeiu",
       "name": "책보물",
-      "mode": "chapter",
+      "mode": "checkin",
       "total": 70,
       "start": "2026-07-19",
       "end": "2026-12-31"
@@ -27,7 +27,7 @@
     {
       "id": "zirkrdl",
       "name": "논술숙제",
-      "mode": "chapter",
+      "mode": "checkin",
       "total": 50,
       "start": "2026-07-19",
       "end": "2026-12-31"
