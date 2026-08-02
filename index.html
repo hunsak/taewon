@@ -168,6 +168,17 @@
   .card-save:disabled{ background:#C8C2B2; cursor:default; }
   .card-note{ font-size:11px; color:var(--ink-soft); margin-top:8px; }
 
+  .checkin-btn{
+    width:100%; border:1.5px solid var(--line); background:#FCFAF5; color:var(--ink-soft);
+    border-radius:12px; padding:12px; font-size:14px; font-weight:600; cursor:pointer;
+    transition:background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .checkin-btn:hover{ border-color:var(--sub-color, var(--primary)); }
+  .checkin-btn.checked{
+    background:var(--sub-color, var(--primary)); border-color:var(--sub-color, var(--primary)); color:#fff;
+  }
+  .checkin-btn:disabled{ opacity:0.6; cursor:default; }
+
   .section-title{ display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:15px; font-weight:700; }
   .section-title .dash{ width:18px; height:2px; background:var(--accent); display:inline-block; }
 
@@ -282,7 +293,7 @@ const GH_BRANCH_DEFAULT = "main";
 const GH_PATH_DEFAULT  = "data.json";
 const SETTINGS_PASSWORD = "675577hh";
 
-const MODE_LABEL = { page:"페이지", unit:"단원", chapter:"챕터" };
+const MODE_LABEL = { page:"페이지", unit:"단원", chapter:"챕터", checkin:"체크인" };
 const SUBJECT_COLORS = ["#45624A","#E2924F","#5B7FA6","#B25D5D","#8A6BAF","#4A8B8B","#A67C3D","#6E7F45"];
 
 /* ================= STATE ================= */
@@ -536,11 +547,33 @@ function renderCards(){
   const wrap = document.getElementById('cardsArea');
   wrap.innerHTML = data.subjects.map((s, i)=>{
     const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
-    const dayRec = (data.records[selectedDate] || {})[s.id];
-    const current = dayRec ? dayRec.current : '';
     const pct = subjectPercentOn(s, selectedDate);
     const pctDisplay = pct === null ? '–' : pct.toFixed(0) + '%';
     const ring = ringSvg(pct === null ? 0 : pct, color);
+
+    if(s.mode === 'checkin'){
+      const checked = isCheckedInOn(s, selectedDate);
+      const doneCount = checkinDoneCount(s, selectedDate);
+      return `
+        <div class="card" style="--sub-color:${color}">
+          <div class="card-top">
+            <div class="ring">${ring}</div>
+            <div>
+              <div class="card-name">${escapeHtml(s.name)}</div>
+              <div class="card-meta">체크인 기준 · 목표 ${s.total}회 · ${s.start} ~ ${s.end}</div>
+            </div>
+            <div class="card-pct">${pctDisplay}</div>
+          </div>
+          <button class="checkin-btn ${checked ? 'checked' : ''}" id="checkin-${s.id}">
+            ${checked ? '✅ 오늘 완료했어요' : '오늘 했음으로 체크'}
+          </button>
+          <div class="card-note">지금까지 총 ${doneCount}회 완료 (${selectedDate} 기준)</div>
+        </div>
+      `;
+    }
+
+    const dayRec = (data.records[selectedDate] || {})[s.id];
+    const current = dayRec ? dayRec.current : '';
     return `
       <div class="card" style="--sub-color:${color}">
         <div class="card-top">
@@ -562,8 +595,27 @@ function renderCards(){
   }).join('');
 
   data.subjects.forEach(s=>{
-    document.getElementById(`save-${s.id}`).onclick = ()=>saveRecord(s);
+    if(s.mode === 'checkin'){
+      document.getElementById(`checkin-${s.id}`).onclick = ()=>toggleCheckin(s);
+    }else{
+      document.getElementById(`save-${s.id}`).onclick = ()=>saveRecord(s);
+    }
   });
+}
+
+async function toggleCheckin(subject){
+  if(!ghCfg.token){ openTokenPrompt(()=>toggleCheckin(subject)); return; }
+  if(!data.records[selectedDate]) data.records[selectedDate] = {};
+  const current = isCheckedInOn(subject, selectedDate);
+  data.records[selectedDate][subject.id] = { done: !current };
+  const btn = document.getElementById(`checkin-${subject.id}`);
+  btn.disabled = true;
+  const ok = await saveDataToGithub();
+  btn.disabled = false;
+  if(ok){
+    toast(!current ? `${subject.name} 오늘 완료로 체크했어요` : `${subject.name} 체크를 취소했어요`);
+    renderCards(); renderChart();
+  }
 }
 
 function ringSvg(pct, color){
@@ -579,6 +631,14 @@ function ringSvg(pct, color){
 }
 
 function subjectPercentOn(subject, dateStr){
+  if(subject.mode === 'checkin'){
+    if(!subject.total) return null;
+    const doneCount = Object.keys(data.records)
+      .filter(d => d <= dateStr && data.records[d][subject.id] && data.records[d][subject.id].done)
+      .length;
+    if(doneCount === 0) return null;
+    return Math.min(100, (doneCount / subject.total) * 100);
+  }
   // find latest record on or before dateStr
   const dates = Object.keys(data.records).filter(d => d <= dateStr && data.records[d][subject.id]).sort();
   if(dates.length === 0) return null;
@@ -586,6 +646,17 @@ function subjectPercentOn(subject, dateStr){
   const current = data.records[last][subject.id].current;
   if(!subject.total) return null;
   return Math.min(100, (current / subject.total) * 100);
+}
+
+function checkinDoneCount(subject, uptoDateStr){
+  uptoDateStr = uptoDateStr || todayStr();
+  return Object.keys(data.records)
+    .filter(d => d <= uptoDateStr && data.records[d][subject.id] && data.records[d][subject.id].done)
+    .length;
+}
+
+function isCheckedInOn(subject, dateStr){
+  return !!(data.records[dateStr] && data.records[dateStr][subject.id] && data.records[dateStr][subject.id].done);
 }
 
 function fmtDate(d){
@@ -892,9 +963,10 @@ function renderSubjectsList(){
             <option value="page" ${s.mode==='page'?'selected':''}>페이지 기준</option>
             <option value="unit" ${s.mode==='unit'?'selected':''}>단원 기준</option>
             <option value="chapter" ${s.mode==='chapter'?'selected':''}>챕터 기준</option>
+            <option value="checkin" ${s.mode==='checkin'?'selected':''}>오늘 했음 (체크인)</option>
           </select>
         </div>
-        <div class="field"><label>총량</label><input type="number" class="s-total" value="${s.total}"></div>
+        <div class="field"><label>${s.mode==='checkin' ? '목표 횟수' : '총량'}</label><input type="number" class="s-total" value="${s.total}"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>시작일</label><input type="date" class="s-start" value="${s.start}"></div>
@@ -909,6 +981,14 @@ function renderSubjectsList(){
       data.subjects.splice(idx,1);
       renderSubjectsList();
     };
+  });
+
+  wrap.querySelectorAll('.subject-item').forEach(item=>{
+    const modeSelect = item.querySelector('.s-mode');
+    const totalLabel = item.querySelector('.s-total').closest('.field').querySelector('label');
+    modeSelect.addEventListener('change', ()=>{
+      totalLabel.textContent = modeSelect.value === 'checkin' ? '목표 횟수' : '총량';
+    });
   });
 }
 
