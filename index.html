@@ -2,8 +2,18 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>태원이의 학습 다이어리</title>
+
+<!-- PWA / iOS 홈 화면 아이콘 설정 -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#45624A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="학습다이어리">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -270,7 +280,7 @@ const GH_OWNER_DEFAULT = "hunsak";
 const GH_REPO_DEFAULT  = "taewon";
 const GH_BRANCH_DEFAULT = "main";
 const GH_PATH_DEFAULT  = "data.json";
-const SETTINGS_PASSWORD = "12345";
+const SETTINGS_PASSWORD = "675577hh";
 
 const MODE_LABEL = { page:"페이지", unit:"단원", chapter:"챕터" };
 const SUBJECT_COLORS = ["#45624A","#E2924F","#5B7FA6","#B25D5D","#8A6BAF","#4A8B8B","#A67C3D","#6E7F45"];
@@ -955,6 +965,9 @@ document.getElementById('refreshBtn').onclick = async ()=>{
 (async function init(){
   await loadDataFromGithub();
   render();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{ /* PWA install still works without SW */ });
+  }
 })();
 </script>
 </body>
