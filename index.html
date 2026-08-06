@@ -50,6 +50,7 @@
     background:rgba(250,246,238,0.92);
     backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
+    padding-top:env(safe-area-inset-top, 0px);
   }
   .top-inner{
     max-width:920px; margin:0 auto; padding:16px 20px;
@@ -293,7 +294,7 @@ const GH_BRANCH_DEFAULT = "main";
 const GH_PATH_DEFAULT  = "data.json";
 const SETTINGS_PASSWORD = "12345";
 
-const MODE_LABEL = { page:"페이지", unit:"단원", chapter:"챕터", checkin:"체크인" };
+const MODE_LABEL = { page:"페이지", unit:"단원", chapter:"챕터", checkin:"체크인", weekly:"주간" };
 const SUBJECT_COLORS = ["#45624A","#E2924F","#5B7FA6","#B25D5D","#8A6BAF","#4A8B8B","#A67C3D","#6E7F45"];
 
 /* ================= STATE ================= */
@@ -572,6 +573,29 @@ function renderCards(){
       `;
     }
 
+    if(s.mode === 'weekly'){
+      const monday = getWeekMonday(selectedDate);
+      const sunday = getWeekSunday(monday);
+      const checked = isWeeklyDoneOn(s, selectedDate);
+      const doneCount = weeklyDoneCount(s, selectedDate);
+      return `
+        <div class="card" style="--sub-color:${color}">
+          <div class="card-top">
+            <div class="ring">${ring}</div>
+            <div>
+              <div class="card-name">${escapeHtml(s.name)}</div>
+              <div class="card-meta">주간 기준 · 목표 ${s.total}주 · ${s.start} ~ ${s.end}</div>
+            </div>
+            <div class="card-pct">${pctDisplay}</div>
+          </div>
+          <button class="checkin-btn ${checked ? 'checked' : ''}" id="weekly-${s.id}">
+            ${checked ? `✅ 이번 주 완료 (${shortMD(monday)}~${shortMD(sunday)})` : `이번 주 완료로 체크 (${shortMD(monday)}~${shortMD(sunday)})`}
+          </button>
+          <div class="card-note">지금까지 총 ${doneCount}주 완료</div>
+        </div>
+      `;
+    }
+
     const dayRec = (data.records[selectedDate] || {})[s.id];
     const current = dayRec ? dayRec.current : '';
     return `
@@ -597,6 +621,8 @@ function renderCards(){
   data.subjects.forEach(s=>{
     if(s.mode === 'checkin'){
       document.getElementById(`checkin-${s.id}`).onclick = ()=>toggleCheckin(s);
+    }else if(s.mode === 'weekly'){
+      document.getElementById(`weekly-${s.id}`).onclick = ()=>toggleWeekly(s);
     }else{
       document.getElementById(`save-${s.id}`).onclick = ()=>saveRecord(s);
     }
@@ -614,6 +640,22 @@ async function toggleCheckin(subject){
   btn.disabled = false;
   if(ok){
     toast(!current ? `${subject.name} 오늘 완료로 체크했어요` : `${subject.name} 체크를 취소했어요`);
+    renderCards(); renderChart();
+  }
+}
+
+async function toggleWeekly(subject){
+  if(!ghCfg.token){ openTokenPrompt(()=>toggleWeekly(subject)); return; }
+  const monday = getWeekMonday(selectedDate);
+  if(!data.records[monday]) data.records[monday] = {};
+  const current = isWeeklyDoneOn(subject, selectedDate);
+  data.records[monday][subject.id] = { done: !current };
+  const btn = document.getElementById(`weekly-${subject.id}`);
+  btn.disabled = true;
+  const ok = await saveDataToGithub();
+  btn.disabled = false;
+  if(ok){
+    toast(!current ? `${subject.name} 이번 주 완료로 체크했어요` : `${subject.name} 이번 주 체크를 취소했어요`);
     renderCards(); renderChart();
   }
 }
@@ -639,6 +681,15 @@ function subjectPercentOn(subject, dateStr){
     if(doneCount === 0) return null;
     return Math.min(100, (doneCount / subject.total) * 100);
   }
+  if(subject.mode === 'weekly'){
+    if(!subject.total) return null;
+    const monday = getWeekMonday(dateStr);
+    const doneCount = Object.keys(data.records)
+      .filter(d => d <= monday && data.records[d][subject.id] && data.records[d][subject.id].done)
+      .length;
+    if(doneCount === 0) return null;
+    return Math.min(100, (doneCount / subject.total) * 100);
+  }
   // find latest record on or before dateStr
   const dates = Object.keys(data.records).filter(d => d <= dateStr && data.records[d][subject.id]).sort();
   if(dates.length === 0) return null;
@@ -659,12 +710,45 @@ function isCheckedInOn(subject, dateStr){
   return !!(data.records[dateStr] && data.records[dateStr][subject.id] && data.records[dateStr][subject.id].done);
 }
 
-function fmtDate(d){
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+/* --- weekly mode helpers: a subject is marked done once per calendar week (Mon–Sun),
+   stored under the Monday date of that week regardless of which day it was toggled on --- */
+function getWeekMonday(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setDate(d.getDate()+diff);
+  return fmtDate(d);
+}
+function getWeekSunday(mondayStr){
+  const d = new Date(mondayStr+'T00:00:00');
+  d.setDate(d.getDate()+6);
+  return fmtDate(d);
+}
+function shortMD(dateStr){
+  return dateStr.slice(5).replace('-', '.');
+}
+function isWeeklyDoneOn(subject, dateStr){
+  const monday = getWeekMonday(dateStr);
+  return !!(data.records[monday] && data.records[monday][subject.id] && data.records[monday][subject.id].done);
+}
+function weeklyDoneCount(subject, uptoDateStr){
+  const monday = getWeekMonday(uptoDateStr || todayStr());
+  return Object.keys(data.records)
+    .filter(d => d <= monday && data.records[d][subject.id] && data.records[d][subject.id].done)
+    .length;
 }
 
 function hasAnyRecord(dateStr){
-  return !!data.records[dateStr] && Object.keys(data.records[dateStr]).length > 0;
+  if(data.records[dateStr] && Object.keys(data.records[dateStr]).length > 0) return true;
+  const monday = getWeekMonday(dateStr);
+  if(monday !== dateStr && data.records[monday]){
+    return data.subjects.some(s => s.mode === 'weekly' && data.records[monday][s.id] && data.records[monday][s.id].done);
+  }
+  return false;
+}
+
+function fmtDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
 function computeStreak(){
@@ -964,9 +1048,10 @@ function renderSubjectsList(){
             <option value="unit" ${s.mode==='unit'?'selected':''}>단원 기준</option>
             <option value="chapter" ${s.mode==='chapter'?'selected':''}>챕터 기준</option>
             <option value="checkin" ${s.mode==='checkin'?'selected':''}>오늘 했음 (체크인)</option>
+            <option value="weekly" ${s.mode==='weekly'?'selected':''}>이번 주 했음 (주간 체크)</option>
           </select>
         </div>
-        <div class="field"><label>${s.mode==='checkin' ? '목표 횟수' : '총량'}</label><input type="number" class="s-total" value="${s.total}"></div>
+        <div class="field"><label>${s.mode==='checkin' ? '목표 횟수' : s.mode==='weekly' ? '목표 주 수' : '총량'}</label><input type="number" class="s-total" value="${s.total}"></div>
       </div>
       <div class="field-row">
         <div class="field"><label>시작일</label><input type="date" class="s-start" value="${s.start}"></div>
@@ -987,7 +1072,7 @@ function renderSubjectsList(){
     const modeSelect = item.querySelector('.s-mode');
     const totalLabel = item.querySelector('.s-total').closest('.field').querySelector('label');
     modeSelect.addEventListener('change', ()=>{
-      totalLabel.textContent = modeSelect.value === 'checkin' ? '목표 횟수' : '총량';
+      totalLabel.textContent = modeSelect.value === 'checkin' ? '목표 횟수' : modeSelect.value === 'weekly' ? '목표 주 수' : '총량';
     });
   });
 }
