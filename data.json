@@ -39,6 +39,14 @@
       "total": 176,
       "start": "2026-07-24",
       "end": "2026-08-24"
+    },
+    {
+      "id": "uoucjoc",
+      "name": "재능",
+      "mode": "weekly",
+      "total": 20,
+      "start": "2026-08-03",
+      "end": "2026-12-31"
     }
   ],
   "records": {
