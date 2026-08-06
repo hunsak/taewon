@@ -19,16 +19,16 @@
     {
       "id": "yk2jeiu",
       "name": "책보물",
-      "mode": "checkin",
-      "total": 70,
+      "mode": "weekly",
+      "total": 20,
       "start": "2026-07-19",
       "end": "2026-12-31"
     },
     {
       "id": "zirkrdl",
       "name": "논술숙제",
-      "mode": "checkin",
-      "total": 50,
+      "mode": "weekly",
+      "total": 20,
       "start": "2026-07-19",
       "end": "2026-12-31"
     },
