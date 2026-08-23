@@ -19,8 +19,8 @@
     {
       "id": "yk2jeiu",
       "name": "책보물",
-      "mode": "checkin",
-      "total": 50,
+      "mode": "weekly",
+      "total": 18,
       "start": "2026-07-19",
       "end": "2026-12-31"
     },
